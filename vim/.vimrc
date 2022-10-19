@@ -165,6 +165,7 @@ let @v='0xxj'
 :map <C-c> @c
 :map <C-x> @v
 
+:map <C-u> :new \| r ! curl -s 
 
 set clipboard=unnamed
 
@@ -237,12 +238,16 @@ function! FirebaseEmulator()
   endif
 endfunction
 
-function! FirebaseEmulatorExit(job, status) 
-  unlet g:fire_job
+function! FirebaseStop()
   call job_stop(g:fire_job)
+  unlet g:fire_job
 endfunction
 
-function! TypescriptWatch() 
+function! FirebaseEmulatorExit(job, status) 
+  call FirebaseStop()
+endfunction
+
+function! TWatch() 
   split __TSC_OUT__
   normal! ggdG
   setlocal buftype=nofile
@@ -262,12 +267,18 @@ function! TypescriptWatch()
   endif
 endfunction
 
-function! TypescriptWatchExit(job, status) 
-  unlet g:tsc_job
+function! TStop()
   call job_stop(g:tsc_job)
+  unlet g:tsc_job
+endfunction
+
+function! TypescriptWatchExit(job, status) 
+  :call TStop()
 endfunction
 
 function! RunMocha() 
   sleep 1000m
  :exe "normal \<C-w>b:%!mocha .\<CR>\<C-w>p"
 endfunction
+
+
