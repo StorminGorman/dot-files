@@ -165,11 +165,21 @@ let @v='0xxj'
 :map <C-c> @c
 :map <C-x> @v
 
-:map <C-q> <C-w>b:%!tsc && mocha .<CR><C-w>p
 
 set clipboard=unnamed
 
 let $FZF_DEFAULT_OPTS="--bind \"alt-j:down,alt-k:up\""
+
+
+function! TypescriptModeOn()
+  let g:netrw_list_hide='^.*.js.map$\|.*.js$'
+  :map <C-q> :call RunMocha()<CR>
+endfunction
+
+function! TypescriptModeOff()
+  let g:netrw_list_hide=''
+  :unmap <C-q>
+endfunction
 
 function! Searchbsi(query, ...)
   let query = empty(a:query) ? '^(?=.)' : a:query
@@ -204,9 +214,60 @@ function! Searchdartfiles(dir, ...)
 
   let args.options = ['-m', '--prompt', strwidth(dir) < &columns / 2 - 20 ? dir : '> ']
   call s:merge_opts(args, get(g:, 'fzf_files_options', []))
-"  args.source = 'find ~/development/bsi/workspace -name \*.dart';
   return fzf#run({'source': 'find ~/development/bsi/workspace -name \*.dart', 'sink': 'edit'}, args, a:000)
-"  return fzf#run('files', args, a:000)
-"  return s:fzf('files', args, a:000)
-"  return s:fzf('files', args, a:000)
+endfunction
+
+function! FirebaseEmulator() 
+  split __FIREBASE_OUT__
+  normal! ggdG
+  setlocal buftype=nofile
+  setlocal bufhidden=hide
+  setlocal noswapfile
+  let g:fire_job = job_start('/bin/bash -c "cd /Users/bgorman/development/bsi/workspace/portico/server && firebase emulators:start"', {
+        \ 'out_io': 'buffer',
+        \ 'out_name': '__FIREBASE_OUT__',
+        \ 'err_io': 'buffer',
+        \ 'err_name': '__FIREBASE_OUT__',
+        \ 'exit_cb': 'FirebaseEmulatorExit',
+        \ })
+
+  if job_status(g:fire_job) == 'fail'
+    echo 'Could not start firebase emulator'
+    unlet g:fire_job
+  endif
+endfunction
+
+function! FirebaseEmulatorExit(job, status) 
+  unlet g:fire_job
+  call job_stop(g:fire_job)
+endfunction
+
+function! TypescriptWatch() 
+  split __TSC_OUT__
+  normal! ggdG
+  setlocal buftype=nofile
+  setlocal bufhidden=hide
+  setlocal noswapfile
+  let g:tsc_job = job_start('tsc -w', {
+        \ 'out_io': 'buffer',
+        \ 'out_name': '__TSC_OUT__',
+        \ 'err_io': 'buffer',
+        \ 'err_name': '__TSC_OUT__',
+        \ 'exit_cb': 'TypescriptWatchExit',
+        \ })
+
+  if job_status(g:tsc_job) == 'fail'
+    echo 'Could not start typescript watcher'
+    unlet g:tsc_job
+  endif
+endfunction
+
+function! TypescriptWatchExit(job, status) 
+  unlet g:tsc_job
+  call job_stop(g:tsc_job)
+endfunction
+
+function! RunMocha() 
+  sleep 1000m
+ :exe "normal \<C-w>b:%!mocha .\<CR>\<C-w>p"
 endfunction
