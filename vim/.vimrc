@@ -68,25 +68,31 @@ autocmd BufNewFile,BufRead *.hbs   set syntax=html
 :command B :!make -j14 all-recursive
 :command H :!make html
 
-:map <c-z> :!bash<CR>
+" :map <c-z> :!bash<CR>
 :nnoremap <Leader>l :ls<CR>:b<Space>
 :set si ai 
 :set expandtab
 " :set number relativenumber autochdir
 :set number relativenumber
 
+execute pathogen#infect()
+syntax on
+filetype plugin indent on
+
 call plug#begin()
 Plug 'dart-lang/dart-vim-plugin'
 Plug 'thosakwe/vim-flutter'
 Plug 'natebosch/vim-lsc'
 Plug 'natebosch/vim-lsc-dart'
-Plug 'Valloric/YouCompleteMe', { 'do': './install.py --tern-completer' }
 Plug 'preservim/vimux'
 Plug 'christoomey/vim-tmux-navigator'
 Plug 'tpope/vim-fugitive'
 Plug 'paulkass/jira-vim', { 'do': 'pip install -r requirements.txt' }
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+Plug 'neoclide/coc-tsserver'
+Plug 'Valloric/YouCompleteMe', { 'do': './install.py --tern-completer' }
 call plug#end()
 
 let g:lsc_auto_map = v:true
@@ -104,6 +110,9 @@ let g:lsc_auto_map = v:true
  ":map ^[OB ^F
 
 " mappings for vertical split window resize
+ :map <C-m> <C-w>_<C-w>\|
+ ":unmap <C-n>
+ :map <C-M> <C-w>=
  :map ^[OH 30^W<
  :map ^[OF 30^W>
  :map ^[[1~ 30^W<
@@ -147,8 +156,10 @@ command! -bang -nargs=* Ag
 " mappings for paging
 " :map ^[OA <C-bb>
 " :map ^[OB <C-f>
-:map K <C-b>b
-:map J <C-f>
+:nnoremap K {
+:map J }
+:map P <C-f>
+:map { <C-b>b
  ":map ^[OA ^B
  ":map ^[OB ^F
 
@@ -174,7 +185,12 @@ let $FZF_DEFAULT_OPTS="--bind \"alt-j:down,alt-k:up\""
 
 function! TypescriptModeOn()
   let g:netrw_list_hide='^.*.js.map$\|.*.js$'
-  :map <C-q> :call RunMocha()<CR>
+  ":map <C-q> :call RunMocha()<CR>
+  " GoTo code navigation.
+  :nmap <silent> gd <Plug>(coc-definition)
+  :nmap <silent> gy <Plug>(coc-type-definition)
+  :nmap <silent> gi <Plug>(coc-implementation)
+  :nmap <silent> gr <Plug>(coc-references)
 endfunction
 
 function! TypescriptModeOff()
@@ -272,13 +288,87 @@ function! TStop()
   unlet g:tsc_job
 endfunction
 
+function! FlutterTest(testname, device) 
+  split __FLUTTER_TEST_OUT__
+  normal! ggdG
+  setlocal buftype=nofile
+  setlocal bufhidden=hide
+  setlocal noswapfile
+  let g:fluttertest_job = job_start('flutter test -d ' . a:device . ' ' . a:testname, {
+        \ 'out_io': 'buffer',
+        \ 'out_name': '__FLUTTER_TEST_OUT__',
+        \ 'err_io': 'buffer',
+        \ 'err_name': '__FLUTTER_TEST_OUT__'
+        \ })
+
+  if job_status(g:fluttertest_job) == 'fail'
+    echo 'Could not start flutter test'
+    unlet g:fluttertest
+  endif
+endfunction
+
+function! FlutterTestStop()
+  call job_stop(g:fluttertest_job)
+  unlet g:fluttertest_job
+endfunction
+
 function! TypescriptWatchExit(job, status) 
-  :call TStop()
+//  :call TStop()
 endfunction
 
 function! RunMocha() 
-  sleep 1000m
- :exe "normal \<C-w>b:%!mocha .\<CR>\<C-w>p"
+  split __MOCHA_OUT__
+  normal! ggdG
+  setlocal buftype=nofile
+  setlocal bufhidden=hide
+  setlocal noswapfile
+  let g:mocha_job = job_start('mocha .', {
+        \ 'out_io': 'buffer',
+        \ 'out_name': '__MOCHA_OUT__',
+//        \ 'err_io': 'buffer',
+        \ 'err_name': '__MOCHA_OUT__',
+        \ })
+
+  if job_status(g:mocha_job) == 'fail'
+    echo 'Could not start mocha'
+    unlet g:mocha_job
+  endif
 endfunction
 
+function! Get(url) 
+  :call job_start('curl -s ' . a:url)
+endfunction
 
+":inoremap <silent><expr> <TAB> coc#pum#next(1)
+" :inoremap <silent><expr> <TAB>
+"       \ coc#pum#visible() ? coc#pum#next(1) :
+"       \ CheckBackspace() ? "\<Tab>" :
+"       \ coc#refresh()
+
+":inoremap <expr><S-TAB> coc#pum#visible() ? coc#pum#prev(1) : "\<C-h>"
+
+":inoremap <expr><S-TAB> coc#pum#visible() ? coc#pum#prev(1) : "\<C-h>"
+"
+" :iunmap <Tab>
+:exe 'inoremap <expr><tab> pumvisible() ? "\<C-n>" : "\<tab>"'
+:exe 'inoremap <expr><s-tab> pumvisible() ? "\<C-p>" : "\<s-tab>"'
+
+
+function! CheckBackspace() abort
+  let col = col('.') - 1
+  return !col || getline('.')[col - 1]  =~# '\s'
+endfunction
+
+let g:ycm_key_list_select_completion = ['<TAB>', '<Down>']
+
+:map <C-e> :Explore<CR>
+
+:set winheight=30
+
+:noremap <C-
+:noremap 1 :%!sqlformat --reindent --keywords upper --identifiers lower -<CR>
+
+autocmd FileType sql      let b:vimpipe_command="psql -d kristine"
+
+" last buffer
+:nnoremap <leader>] <C-^>
