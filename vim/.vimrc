@@ -110,9 +110,9 @@ let g:lsc_auto_map = v:true
  ":map ^[OB ^F
 
 " mappings for vertical split window resize
- :map <C-m> <C-w>_<C-w>\|
+ :nnoremap <C-m> <C-w>_<C-w>\|
  ":unmap <C-n>
- :map <C-M> <C-w>=
+ :nnoremap <leader>= <C-w>=
  :map ^[OH 30^W<
  :map ^[OF 30^W>
  :map ^[[1~ 30^W<
@@ -163,8 +163,13 @@ command! -bang -nargs=* Ag
  ":map ^[OA ^B
  ":map ^[OB ^F
 
+
+" searching bindings
 :map <C-d> :call Searchdartfiles('')<CR>
-:map <C-s> :Files ~/development/bsi/workspace<CR>
+:map <C-s> :Files ~/work<CR>
+:nnoremap <leader>' :Files ~/work<CR>
+:nnoremap <leader>/ :call Searchbsi('')<CR>
+:nnoremap <leader>; :call Searchdartworld('')<CR>
 :map S :call Searchbsi('')<CR>
 :map D :call Searchdartworld('')<CR>
 
@@ -172,11 +177,15 @@ command! -bang -nargs=* Ag
 
 let @c='0i//j'
 let @v='0xxj'
+let @q='xi/**/^[<80><fd>ahhp^[<80><fd>a^[<80><fd>a0'
+
+
 ":map <C-c> 0i//j
 :map <C-c> @c
 :map <C-x> @v
 
 :map <C-u> :new \| r ! curl -s 
+
 
 set clipboard=unnamed
 
@@ -202,8 +211,8 @@ function! Searchbsi(query, ...)
   let query = empty(a:query) ? '^(?=.)' : a:query
   let args = copy(a:000)
   let agargs = '-G "\.(xml|json|csv|tex|py|pl|rb|js|sh|php|ts|dart|scss|css|html|conf|yaml|yml|sql|cpp|h|c|content)$" --ignore-dir WebHelp --ignore-dir node_modules --ignore-dir dist'
-  let command = agargs . ' ' . fzf#shellescape(query) . ' ~/development/bsi/workspace'
-  " echo command
+  let command = agargs . ' ' . fzf#shellescape(query) . ' ~/work/*'
+  echo command
   return call('fzf#vim#ag_raw', insert(args, command, 0))
 endfunction
 
@@ -211,27 +220,29 @@ function! Searchdartworld(query, ...)
   let query = empty(a:query) ? '^(?=.)' : a:query
   let args = copy(a:000)
   let agargs = '-G "\.(dart)$" --ignore-dir WebHelp --ignore-dir node_modules --ignore-dir canvas'
-  let command = agargs . ' ' . fzf#shellescape(query) . ' ~/development/bsi/workspace/dartlib ~/development/bsi/workspace/portico/client ~/development/bsi/workspace/AtriuumBuild/AtriuumData/dart'
+  let command = agargs . ' ' . fzf#shellescape(query) . ' ~/work/dartlib ~/work/portico/client ~/work/AtriuumBuild/AtriuumData/dart'
   " echo command
   return call('fzf#vim#ag_raw', insert(args, command, 0))
 endfunction
 
 function! Searchdartfiles(dir, ...)
-  let args = {}
-  if !empty(a:dir)
-    if !isdirectory(expand(a:dir))
-      return s:warn('Invalid directory')
-    endif
-    let slash = (s:is_win && !&shellslash) ? '\\' : '/'
-    let dir = substitute(a:dir, '[/\\]*$', slash, '')
-    let args.dir = dir
-  else
-    let dir = s:shortpath()
-  endif
-
-  let args.options = ['-m', '--prompt', strwidth(dir) < &columns / 2 - 20 ? dir : '> ']
-  call s:merge_opts(args, get(g:, 'fzf_files_options', []))
-  return fzf#run({'source': 'find ~/development/bsi/workspace -name \*.dart', 'sink': 'edit'}, args, a:000)
+"  :cd ~/work
+  :call fzf#vim#ag(' ', fzf#vim#with_preview('up:60%'))
+"  let args = {}
+"  if !empty(a:dir)
+"    if !isdirectory(expand(a:dir))
+"      return s:warn('Invalid directory')
+"    endif
+"    let slash = (s:is_win && !&shellslash) ? '\\' : '/'
+"    let dir = substitute(a:dir, '[/\\]*$', slash, '')
+"    let args.dir = dir
+"  else
+"    let dir = s:shortpath()
+"  endif
+"
+"  let args.options = ['-m', '--prompt', strwidth(dir) < &columns / 2 - 20 ? dir : '> ']
+"  call s:merge_opts(args, get(g:, 'fzf_files_options', []))
+"  return fzf#run({'source': 'find ~/work -name \*.dart', 'sink': 'edit'}, args, a:000)
 endfunction
 
 function! FirebaseEmulator() 
@@ -240,7 +251,7 @@ function! FirebaseEmulator()
   setlocal buftype=nofile
   setlocal bufhidden=hide
   setlocal noswapfile
-  let g:fire_job = job_start('/bin/bash -c "cd /Users/bgorman/development/bsi/workspace/portico/server && firebase emulators:start"', {
+  let g:fire_job = job_start('/bin/bash -c "cd ~/work/portico/server && firebase emulators:start"', {
         \ 'out_io': 'buffer',
         \ 'out_name': '__FIREBASE_OUT__',
         \ 'err_io': 'buffer',
@@ -325,7 +336,7 @@ function! RunMocha()
   let g:mocha_job = job_start('mocha .', {
         \ 'out_io': 'buffer',
         \ 'out_name': '__MOCHA_OUT__',
-//        \ 'err_io': 'buffer',
+/        \ 'err_io': 'buffer',
         \ 'err_name': '__MOCHA_OUT__',
         \ })
 
@@ -333,6 +344,55 @@ function! RunMocha()
     echo 'Could not start mocha'
     unlet g:mocha_job
   endif
+endfunction
+
+function! ProjectSwitch(project, branch) 
+  split __PROJECTSWITCH_OUT__
+  normal! ggdG
+  setlocal buftype=nofile
+  setlocal bufhidden=hide
+  setlocal noswapfile
+  let g:projectswitch_job = job_start('project-switch ' . a:project . ' ' . a:branch, {
+        \ 'out_io': 'buffer',
+        \ 'out_name': '__PROJECTSWITCH_OUT__',
+        \ 'err_io': 'buffer',
+        \ 'err_name': '__PROJECTSWITCH_OUT__',
+        \ })
+
+  if job_status(g:projectswitch_job) == 'fail'
+    echo 'Could not start projectswitch'
+    unlet g:projectswitch_job
+  endif
+endfunction
+
+function! RunCMD(cmd, id) 
+  let bufferName = "__" . a:id . "_OUT__" 
+  execute "split" . bufferName
+  normal! ggdG
+  if exists("g:cmd_job_channel")
+      let g:last_job = job_start(a:cmd, {'channel': g:cmd_job_channel})
+      :q
+      return
+  endif
+
+  setlocal buftype=nofile
+  setlocal bufhidden=hide
+  setlocal noswapfile
+  let g:last_job = job_start(a:cmd, {
+        \ 'out_io': 'buffer',
+        \ 'out_name': bufferName,
+        \ 'err_io': 'buffer',
+        \ 'err_name': bufferName,
+        \ })
+
+  if job_status(g:last_job) == 'fail'
+    echo 'Could not start ' . a:cmd
+    unlet g:last_job
+    return
+  endif
+
+  let g:cmd_job_channel = job_getchannel(g:last_job)
+  let g:cmd_job_buffer = ch_getbufnr(g:cmd_job_channel, "out")
 endfunction
 
 function! Get(url) 
@@ -365,10 +425,44 @@ let g:ycm_key_list_select_completion = ['<TAB>', '<Down>']
 
 :set winheight=30
 
-:noremap <C-
+":noremap <C-
 :noremap 1 :%!sqlformat --reindent --keywords upper --identifiers lower -<CR>
 
 autocmd FileType sql      let b:vimpipe_command="psql -d kristine"
 
 " last buffer
 :nnoremap <leader>] <C-^>
+
+
+function! BufSel(pattern)
+  let bufcount = bufnr("$")
+  let currbufnr = 1
+  let nummatches = 0
+  let firstmatchingbufnr = 0
+  while currbufnr <= bufcount
+    if(bufexists(currbufnr))
+      let currbufname = bufname(currbufnr)
+      if(match(currbufname, a:pattern) > -1)
+        echo currbufnr . ": ". bufname(currbufnr)
+        let nummatches += 1
+        let firstmatchingbufnr = currbufnr
+      endif
+    endif
+    let currbufnr = currbufnr + 1
+  endwhile
+  if(nummatches == 1)
+    execute ":buffer ". firstmatchingbufnr
+  elseif(nummatches > 1)
+    let desiredbufnr = input("Enter buffer number: ")
+    if(strlen(desiredbufnr) != 0)
+      execute ":buffer ". desiredbufnr
+    endif
+  else
+    echo "No matching buffers"
+  endif
+endfunction
+
+command! -bang -nargs=* Bs
+      \ call BufSel(<q-args>)
+
+:nnoremap <leader>b :Bs 

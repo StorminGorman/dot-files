@@ -132,7 +132,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && . "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
 [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 export GOOGLE_APPLICATION_CREDENTIALS=/Users/bgorman/development/keys/current.json
-export CDPATH=.:/Users/bgorman/development/bsi/workspace:/Users/bgorman/development/gorbotics
+export CDPATH=.:~/work:/Users/bgorman/development/gorbotics:~/work/portico/client/patron:~/work/portico/client/librarian:~/work/portico/client:~/development/bsi:~/work/AtriuumBuild/AtriuumData/dart
 
 export PATH=/Users/bgorman/.pgo/pgo:$PATH:/opt/homebrew/bin:~/.
 export PGOUSER=/Users/bgorman/.pgo/pgo/pgouser
