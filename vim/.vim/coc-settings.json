@@ -1,0 +1,9 @@
+{
+  "languageserver": {
+    "dart": {
+      "command": "dart",
+      "args": ["language-server", "--protocol=lsp", "--client-id=vim", "--client-version=9.0"],
+      "filetypes": ["dart"]
+    }
+  }
+}

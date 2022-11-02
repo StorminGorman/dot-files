@@ -134,13 +134,15 @@ export NVM_DIR="$HOME/.nvm"
 export GOOGLE_APPLICATION_CREDENTIALS=/Users/bgorman/development/keys/current.json
 export CDPATH=.:~/work:/Users/bgorman/development/gorbotics:~/work/portico/client/patron:~/work/portico/client/librarian:~/work/portico/client:~/development/bsi:~/work/AtriuumBuild/AtriuumData/dart
 
-export PATH=/Users/bgorman/.pgo/pgo:$PATH:/opt/homebrew/bin:~/.
+export PATH=/Users/bgorman/.pgo/pgo:/opt/homebrew/bin:$PATH
 export PGOUSER=/Users/bgorman/.pgo/pgo/pgouser
 export PGO_CA_CERT=/Users/bgorman/.pgo/pgo/client.crt
 export PGO_CLIENT_CERT=/Users/bgorman/.pgo/pgo/client.crt
 export PGO_CLIENT_KEY=/Users/bgorman/.pgo/pgo/client.key
 export PGO_APISERVER_URL='https://127.0.0.1:8443'
 export PGO_NAMESPACE=pgo
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
@@ -152,10 +154,12 @@ if [ -f '/Users/bgorman/development/google-cloud-sdk/path.zsh.inc' ]; then . '/U
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/bgorman/development/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/bgorman/development/google-cloud-sdk/completion.zsh.inc'; fi
 
-nvm use 16
+#nvm use 16
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 
 export DEV_HOME=~/development
 export BSI_HOME=$DEV_HOME/bsi
 export BSI_WORKSPACE_HOME=$BSI_HOME/workspace
 export ATRIUUM_HOME=$BSI_WORKSPACE_HOME/AtriuumBuild
+
+source ~/.secrets
