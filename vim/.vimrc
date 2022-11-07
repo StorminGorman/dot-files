@@ -1,5 +1,4 @@
 ":autocmd! BufWritePost api_test_tool.dart 
-":autocmd BufWritePost api_test_tool.dart :call RunCMD('dart run ' . expand('%'), 'DART')
 "
 runtime! debian.vim
 
@@ -37,14 +36,17 @@ set number relativenumber
 set sw=2
 set ts=2
 set clipboard=unnamed
-set winheight=30
+set winheight=20
 colorscheme darkblue
 
 " file type mappings
-autocmd BufNewFile,BufRead *.content   set syntax=html
-autocmd BufNewFile,BufRead *.hbs   set syntax=html
-autocmd BufNewFile,BufRead CMake*   set filetype=cmake
-autocmd BufNewFile,BufRead atriuum*conf   set filetype=xml
+augroup bsi_filetypes
+  autocmd!
+  autocmd BufNewFile,BufRead *.content   set syntax=html
+  autocmd BufNewFile,BufRead *.hbs   set syntax=html
+  autocmd BufNewFile,BufRead CMake*   set filetype=cmake
+  autocmd BufNewFile,BufRead atriuum*conf   set filetype=xml
+augroup END
 
 :nnoremap <Leader>l :ls<CR>:b<Space>
 
@@ -68,44 +70,44 @@ call plug#end()
 let g:lsc_auto_map = v:true
 
 " mappings for flutter
-:map r :FlutterHotRestart<CR>
+:nnoremap r :FlutterHotRestart<CR>
 
 " mappings for vertical split window resize
 :nnoremap <C-m> <C-w>_<C-w>\|
 :nnoremap <leader>= <C-w>=
 
 " mappings for window nav
-:map <C-h> h
-:map <C-j> j
-:map <C-k> k
-:map <C-l> l
+:nnoremap <C-h> h
+:nnoremap <C-j> j
+:nnoremap <C-k> k
+:nnoremap <C-l> l
 
 " vimrc helpers
-:map v :e ~/.vimrc
-:map s :source ~/.vimrc
+:nnoremap v :e ~/.vimrc
+:nnoremap s :source ~/.vimrc
 :autocmd! BufWritePost .vimrc
 :autocmd BufWritePost .vimrc :source ~/.vimrc
 
-:map vp :VimuxPromptCommand<CR>
+:nnoremap vp :VimuxPromptCommand<CR>
 
 " personal file nav
 :nnoremap K {
-:map J }
-:map P <C-f>
-:map { <C-b>b
+:nnoremap J }
+:nnoremap P <C-f>
+:nnoremap { <C-b>b
 :nnoremap <leader>] <C-^> 
 
 " searching bindings
 let $FZF_DEFAULT_OPTS="--bind \"alt-j:down,alt-k:up\""
-:map <C-d> :call Searchdartfiles('')<CR>
-:map <C-s> :Files ~/work<CR>
+:nnoremap <C-d> :call Searchdartfiles('')<CR>
+:nnoremap <C-s> :Files ~/work<CR>
 :nnoremap <leader>' :Files ~/work<CR>
 :nnoremap <leader><CR> :Files<CR>
 :nnoremap <leader>p :Ag<CR>
 :nnoremap <leader>/ :call Searchbsi('')<CR>
 :nnoremap <leader>; :call Searchdartworld('')<CR>
-:map S :call Searchbsi('')<CR>
-:map D :call Searchdartworld('')<CR>
+:nnoremap S :call Searchbsi('')<CR>
+:nnoremap D :call Searchdartworld('')<CR>
 command! -bang -nargs=* Ag
       \ call fzf#vim#ag(<q-args>,
       \                 <bang>0 ? fzf#vim#with_preview('up:60%')
@@ -136,16 +138,16 @@ endfunction
 
 " comment out 
 let @c='0i//j'
-:map <C-c> @c
+:nnoremap <C-c> @c
 
 let @v='0xxj'
-:map <C-x> @v
+:nnoremap <C-x> @v
 
 " example of some crazy macro
 let @q='xi/**/^[<80><fd>ahhp^[<80><fd>a^[<80><fd>a0'
 
 " API Helper Mappings
-:map <C-u> :new \| r ! curl -s 
+:nnoremap <C-u> :new \| r ! curl -s 
 function! Get(url) 
   :call job_start('curl -s ' . a:url)
 endfunction
@@ -276,8 +278,14 @@ function! RunCMD(cmd, id)
   let bufferName = "__" . a:id . "_OUT__" 
   execute "split" . bufferName
   normal! ggdG
-  if exists("g:cmd_job_channel")
-      let g:last_job = job_start(a:cmd, {'channel': g:cmd_job_channel})
+
+  let id = a:id
+  let jobVar = "g:" . id . "_job"
+  let channelVar = "g:" . id . "_channel"
+  let bufferVar =  "g:" . id . "_buffer"
+
+  if exists(channelVar)
+      execute "let " . jobVar . " = job_start(a:cmd, {'channel': " . channelVar . "})"
       :q
       return
   endif
@@ -285,23 +293,16 @@ function! RunCMD(cmd, id)
   setlocal buftype=nofile
   setlocal bufhidden=hide
   setlocal noswapfile
-  let g:last_job = job_start(a:cmd, {
-        \ 'out_io': 'buffer',
-        \ 'out_name': bufferName,
-        \ 'err_io': 'buffer',
-        \ 'err_name': bufferName,
-        \ })
+  execute "let " . jobVar . " = job_start(a:cmd, {'out_io': 'buffer', 'out_name': bufferName, 'err_io': 'buffer', 'err_name': bufferName,})"
 
-  if job_status(g:last_job) == 'fail'
-    echo 'Could not start ' . a:cmd
-    unlet g:last_job
-    return
-  endif
-
-  let g:cmd_job_channel = job_getchannel(g:last_job)
-  let g:cmd_job_buffer = ch_getbufnr(g:cmd_job_channel, "out")
+  execute "let " . channelVar . " = job_getchannel(" . jobVar . ")"
+  execute "let " . bufferVar . " = ch_getbufnr(" . channelVar . ", 'out')"
 endfunction
 
+function! StopCMD(id)
+  let jobVar = "g:" . a:id . "_job"
+  execute "call job_stop(" . jobVar . ")"
+endfunction
 
 :exe 'inoremap <expr><tab> pumvisible() ? "\<C-n>" : "\<tab>"'
 :exe 'inoremap <expr><s-tab> pumvisible() ? "\<C-p>" : "\<s-tab>"'
@@ -311,7 +312,7 @@ function! CheckBackspace() abort
   return !col || getline('.')[col - 1]  =~# '\s'
 endfunction
 
-:map <C-e> :Explore<CR>
+:nnoremap <C-e> :Explore<CR>
 
 
 " SQL Format
@@ -403,7 +404,7 @@ nmap <silent> ]g <Plug>(coc-diagnostic-next)
 
 " GoTo code navigation.
 nmap <silent> gd <Plug>(coc-definition)
-nmap <silent> gy <Plug>(coc-type-definition)
+nmap <silent> gy <Plug>(coc-typeaeacaeaaaqqqkkj)
 nmap <silent> gi <Plug>(coc-implementation)
 nmap <silent> gr <Plug>(coc-references)
 
@@ -507,3 +508,64 @@ nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
 " Resume latest coc list.
 nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
+":autocmd BufWritePost docker_engine.dart :call RunCMD('dart test test/workers', 'DARTENGINE')
+":autocmd! BufWritePost *.dart :call RunCMD('dart run', 'SAYING')
+
+" Gallery Automations
+function! GalleryModeOn()
+  cd ~/work/AtriuumBuild/AtriuumData/dart/gallery
+  call RunCMD('webdev serve web:8081', 'WEBDEV')
+  let g:gallery_webdev_job = g:last_job
+endfunction
+
+function! GalleryModeOff()
+  call job_stop(g:gallery_webdev_job)
+  unlet g:gallery_webdev_job
+endfunction
+
+" templates
+inoremap <leader>dt <esc>:r ! cat ~/development/templates/dart_test.dart<CR>
+inoremap <leader>sl <esc>:r ! cat ~/development/templates/stateless.dart<CR>
+inoremap <leader>mo <esc>:r ! cat ~/development/templates/ts_test.ts<CR>
+iabbrev dartest <esc>:r ! cat ~/development/templates/dart_test.dart<CR>?main<cr>jci'
+iabbrev stless <esc>:r ! cat ~/development/templates/stateless.dart<CR>i
+
+" 'helpful' editor 'stuff'
+
+" this surrounds \s over a word => 'word' 
+nnoremap <leader>s viw<esc>a'<esc>bi'<esc>lel
+
+" turn on search highlighting
+set hlsearch incsearch
+
+" In the quickfix window, <CR> is used to jump to the error under the
+" cursor, so undefine the mapping there.
+autocmd BufReadPost quickfix nnoremap <buffer> <CR> <CR>
+
+" function to search for word under cursor
+function! GrepWord() 
+  silent execute "grep -r " . shellescape(expand("<cword>")) . " ."
+  copen
+  redraw!
+endfunction
+
+" function to create matching dart file
+function! GoToDartTest() 
+  execute "let path = '" . expand('%:h') . "'"
+  execute "let fileName = '" . expand('%:t') . "'"
+  let testName = split(fileName, '\.')[0] . '_test.dart'
+  let parts = split(path, '/')[1:]
+  let testDir = 'test/' . join(parts, '/')
+  silent :execute "!mkdir -p " . testDir
+  redraw!
+  let testPath = testDir . "/" . testName
+  if filereadable(expand(testPath))
+    execute "vsplit " . testPath
+  else
+    execute "vsplit " . testPath
+    normal i\dt<esc>
+  endif
+endfunction
+
+echo "That in all things God may be glorified"
+!cat ~/development/asciifun/thanks
