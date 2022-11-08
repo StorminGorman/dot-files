@@ -2,6 +2,10 @@
 "
 runtime! debian.vim
 
+"if (has("termguicolors"))
+"  set termguicolors
+"endif
+
 syntax on
 
 set background=dark
@@ -139,6 +143,7 @@ endfunction
 " comment out 
 let @c='0i//j'
 :nnoremap <C-c> @c
+:nnoremap <M-/> @c
 
 let @v='0xxj'
 :nnoremap <C-x> @v
@@ -149,7 +154,9 @@ let @q='xi/**/^[<80><fd>ahhp^[<80><fd>a^[<80><fd>a0'
 " API Helper Mappings
 :nnoremap <C-u> :new \| r ! curl -s 
 function! Get(url) 
-  :call job_start('curl -s ' . a:url)
+  echom 'curl -s ' . a:url . ' | json_pp'
+  call RunCMD('curl -s ' . a:url . ' | json_pp', 'CURL')
+"  set filetype=json
 endfunction
 
 " Firebase stuff
@@ -180,6 +187,17 @@ endfunction
 
 function! FirebaseEmulatorExit(job, status) 
   call FirebaseStop()
+endfunction
+
+autocmd! filetype typescript call TypescriptModeOn()
+autocmd! Filetype * if &ft!="typescript"|call TypescriptModeOff()|endif
+
+function! TypescriptModeOn()
+  let g:netrw_list_hide='^.*.js.map$\|.*.js$'
+endfunction
+
+function! TypescriptModeOff()
+  let g:netrw_list_hide=''
 endfunction
 
 function! TWatch() 
@@ -227,6 +245,31 @@ function! RunMocha()
     echo 'Could not start mocha'
     unlet g:mocha_job
   endif
+endfunction
+
+" Atriuum 
+
+set makeprg=ninja
+
+function! AtriuumRun()
+  call AtriuumStop()
+  echom "building atriuum!"
+  make
+  echom "done building atriuum!"
+  call AtriuumStart()
+endfunction
+
+function! AtriuumStart() 
+  call RunCMD('splinter-run', 'ATRIUUM')
+endfunction
+
+function! AtriuumRestart()
+  AtriuumStop()
+  AtriuumStart()
+endfunction
+
+function! AtriuumStop()
+  call StopCMD('ATRIUUM')
 endfunction
 
 " Flutter
@@ -312,7 +355,8 @@ function! CheckBackspace() abort
   return !col || getline('.')[col - 1]  =~# '\s'
 endfunction
 
-:nnoremap <C-e> :Explore<CR>
+:nnoremap [1~ :Explore<CR>
+:nnoremap [4~ :bp<CR>
 
 
 " SQL Format
@@ -399,8 +443,10 @@ endif
 
 " Use `[g` and `]g` to navigate diagnostics
 " Use `:CocDiagnostics` to get all diagnostics of current buffer in location list.
-nmap <silent> [g <Plug>(coc-diagnostic-prev)
-nmap <silent> ]g <Plug>(coc-diagnostic-next)
+nmap <silent> gN <Plug>(coc-diagnostic-prev)
+nmap <silent> gn <Plug>(coc-diagnostic-next)
+nmap <silent> gE <Plug>(coc-diagnostic-prev-error)
+nmap <silent> ge <Plug>(coc-diagnostic-next-error)
 
 " GoTo code navigation.
 nmap <silent> gd <Plug>(coc-definition)
@@ -515,12 +561,10 @@ nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 function! GalleryModeOn()
   cd ~/work/AtriuumBuild/AtriuumData/dart/gallery
   call RunCMD('webdev serve web:8081', 'WEBDEV')
-  let g:gallery_webdev_job = g:last_job
 endfunction
 
 function! GalleryModeOff()
-  call job_stop(g:gallery_webdev_job)
-  unlet g:gallery_webdev_job
+  call StopCMD('WEBDEV')
 endfunction
 
 " templates
@@ -567,5 +611,44 @@ function! GoToDartTest()
   endif
 endfunction
 
+function! GoToTsTest() 
+  execute "let path = '" . expand('%:h') . "'"
+  execute "let fileName = '" . expand('%:t') . "'"
+  let testName = split(fileName, '\.')[0] . '_test.dart'
+  let parts = split(path, '/')[1:]
+  let testName = 
+  let testDir = 'test/' . join(parts, '/')
+  silent :execute "!mkdir -p " . testDir
+  redraw!
+  let testPath = testDir . "/" . testName
+  if filereadable(expand(testPath))
+    execute "vsplit " . testPath
+  else
+    execute "vsplit " . testPath
+    normal i\dt<esc>
+  endif
+endfunction
+
+" JSONIFY
+function! JSONIFY() 
+  set filetype=json
+  :%!json_pp
+endfunction
+
+nnoremap <leader>j :call JSONIFY()<CR>
+
+"hi CocUnderline gui=underline term=underline
+"hi CocErrorHighlight ctermfg=red  guifg=#c4384b gui=underline term=underline
+"hi CocWarningHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
+"hi CocUnusedHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
+
+autocmd ColorScheme *
+"      \ hi CocErrorHighlight guibg=#902020
+      \ | hi CocUnderline gui=underline term=underline
+      \ | hi CocErrorHighlight ctermfg=red  guifg=#c4384b gui=underline term=underline
+      \ | hi CocWarningHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
+      \ | hi CocUnusedHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
+"      \ | hi CocInfoHighlight guibg=#209020
+"      \ | hi CocHintHighlight guibg=#204090
 echo "That in all things God may be glorified"
 !cat ~/development/asciifun/thanks
