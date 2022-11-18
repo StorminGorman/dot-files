@@ -41,11 +41,12 @@ set sw=2
 set ts=2
 set clipboard=unnamed
 set winheight=20
+set winwidth=100
 colorscheme darkblue
 
 " file type mappings
 augroup bsi_filetypes
-  autocmd!
+  "autocmd!
   autocmd BufNewFile,BufRead *.content   set syntax=html
   autocmd BufNewFile,BufRead *.hbs   set syntax=html
   autocmd BufNewFile,BufRead CMake*   set filetype=cmake
@@ -69,7 +70,12 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'neoclide/coc-tsserver'
+Plug 'krisajenkins/vim-pipe'
+"Plug 'epheien/termdbg'
+"Plug 'gilligan/vim-lldb'
+"Plug 'lldb-tools/vim-lldb'
 call plug#end()
+
 
 let g:lsc_auto_map = v:true
 
@@ -86,6 +92,10 @@ let g:lsc_auto_map = v:true
 :nnoremap <C-k> k
 :nnoremap <C-l> l
 
+function! HotKey(key)
+  execute 'nnoremap <leader>' . a:key . ' :b ' . bufnr('%') . '<cr>'
+endfunction
+
 " vimrc helpers
 :nnoremap v :e ~/.vimrc
 :nnoremap s :source ~/.vimrc
@@ -100,6 +110,8 @@ let g:lsc_auto_map = v:true
 :nnoremap P <C-f>
 :nnoremap { <C-b>b
 :nnoremap <leader>] <C-^> 
+:nnoremap 0 ^
+:nnoremap 9 0
 
 " searching bindings
 let $FZF_DEFAULT_OPTS="--bind \"alt-j:down,alt-k:up\""
@@ -160,33 +172,12 @@ function! Get(url)
 endfunction
 
 " Firebase stuff
-function! FirebaseEmulator() 
-  split __FIREBASE_OUT__
-  normal! ggdG
-  setlocal buftype=nofile
-  setlocal bufhidden=hide
-  setlocal noswapfile
-  let g:fire_job = job_start('/bin/bash -c "cd ~/work/portico/server && firebase emulators:start"', {
-        \ 'out_io': 'buffer',
-        \ 'out_name': '__FIREBASE_OUT__',
-        \ 'err_io': 'buffer',
-        \ 'err_name': '__FIREBASE_OUT__',
-        \ 'exit_cb': 'FirebaseEmulatorExit',
-        \ })
-
-  if job_status(g:fire_job) == 'fail'
-    echo 'Could not start firebase emulator'
-    unlet g:fire_job
-  endif
+function! FirebaseStart() 
+  call RunCMD('/bin/bash -c "cd ~/work/portico/server && firebase emulators:start"', 'FIREBASE')
 endfunction
 
 function! FirebaseStop()
-  call job_stop(g:fire_job)
-  unlet g:fire_job
-endfunction
-
-function! FirebaseEmulatorExit(job, status) 
-  call FirebaseStop()
+  call StopCMD('FIREBASE')
 endfunction
 
 autocmd! filetype typescript call TypescriptModeOn()
@@ -198,6 +189,14 @@ endfunction
 
 function! TypescriptModeOff()
   let g:netrw_list_hide=''
+endfunction
+
+function! TRunMe(testname) 
+  call RunCMD('mocha -f "' . a:testname . '" -w **/*.spec.js', 'MOCHA') 
+endfunction
+
+function! TStopMe() 
+  call StopCMD('MOCHA')
 endfunction
 
 function! TWatch() 
@@ -356,12 +355,34 @@ function! CheckBackspace() abort
 endfunction
 
 :nnoremap [1~ :Explore<CR>
-:nnoremap [4~ :bp<CR>
+:nnoremap <leader>z :Explore<CR>
 
+" Postgres 
+function! ShowPostgresLog()
+  call RunCMD('tail -f "/Users/bgorman/Library/Application Support/Postgres/var-14/postgresql.log"', 'POSTGRES')
+endfunction
+
+function! StopPostgresLog()
+  call StopCMD('POSTGRES')
+endfunction
 
 " SQL Format
 :noremap 1 :%!sqlformat --reindent --keywords upper --identifiers lower -<CR>
-autocmd FileType sql      let b:vimpipe_command="psql -d kristine"
+autocmd FileType sql      let b:vimpipe_command="psql -d postgres"
+
+function! CurlGetMe(url) 
+  echom 'curl -s ' . a:url . ' | json_pp'
+  let b:vimpipe_command='curl -s -H "Content-Type: application/json" -X POST --data-binary @- "' . a:url . '" | json_pp'
+endfunction
+
+function! CurlPostMe(url) 
+  echom 'curl -s ' . a:url . ' | json_pp'
+  let b:vimpipe_command='curl -s -H "Content-Type: application/json" -X POST --data-binary @- "' . a:url . '" | json_pp'
+endfunction
+
+function! CurlDelete(url) 
+  execute '!curl -s -X DELETE ' . a:url . ' | json_pp'
+endfunction
 
 function! BufSel(pattern)
   let bufcount = bufnr("$")
@@ -558,13 +579,37 @@ nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 ":autocmd! BufWritePost *.dart :call RunCMD('dart run', 'SAYING')
 
 " Gallery Automations
+"
 function! GalleryModeOn()
+  :nnoremap <leader>h :call GoGalleryHtml()<cr>
+  :nnoremap <leader>d :call GoGalleryDart()<cr>
+  :nnoremap <leader>c :call GoGalleryCss()<cr>
   cd ~/work/AtriuumBuild/AtriuumData/dart/gallery
   call RunCMD('webdev serve web:8081', 'WEBDEV')
 endfunction
 
 function! GalleryModeOff()
   call StopCMD('WEBDEV')
+endfunction
+
+function! GoGalleryHtml() 
+  call GoGalleryFile('html')
+endfunction
+
+function! GoGalleryDart() 
+  echom 'got here'
+  call GoGalleryFile('dart')
+endfunction
+
+function! GoGalleryCss() 
+  call GoGalleryFile('scss')
+endfunction
+
+function! GoGalleryFile(extension) 
+  execute "let path = '" . expand('%:h') . "'"
+  execute "let fileName = '" . expand('%:t') . "'"
+  let full = split(fileName, '\.')[0] . '.' . a:extension
+  execute "edit " . path . '/' . full
 endfunction
 
 " templates
@@ -614,18 +659,13 @@ endfunction
 function! GoToTsTest() 
   execute "let path = '" . expand('%:h') . "'"
   execute "let fileName = '" . expand('%:t') . "'"
-  let testName = split(fileName, '\.')[0] . '_test.dart'
-  let parts = split(path, '/')[1:]
-  let testName = 
-  let testDir = 'test/' . join(parts, '/')
-  silent :execute "!mkdir -p " . testDir
-  redraw!
-  let testPath = testDir . "/" . testName
+  let testName = split(fileName, '\.ts')[0] . '.spec.ts'
+  let testPath = path . "/" . testName
   if filereadable(expand(testPath))
     execute "vsplit " . testPath
   else
     execute "vsplit " . testPath
-    normal i\dt<esc>
+    normal i\mo<esc>
   endif
 endfunction
 
@@ -642,13 +682,5 @@ nnoremap <leader>j :call JSONIFY()<CR>
 "hi CocWarningHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
 "hi CocUnusedHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
 
-autocmd ColorScheme *
-"      \ hi CocErrorHighlight guibg=#902020
-      \ | hi CocUnderline gui=underline term=underline
-      \ | hi CocErrorHighlight ctermfg=red  guifg=#c4384b gui=underline term=underline
-      \ | hi CocWarningHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
-      \ | hi CocUnusedHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline
-"      \ | hi CocInfoHighlight guibg=#209020
-"      \ | hi CocHintHighlight guibg=#204090
-echo "That in all things God may be glorified"
-!cat ~/development/asciifun/thanks
+autocmd ColorScheme * hi CocErrorHighlight guibg=#902020 hi CocUnderline gui=underline term=underline hi CocErrorHighlight ctermfg=red  guifg=#c4384b gui=underline term=underline hi CocWarningHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline hi CocUnusedHighlight ctermfg=yellow guifg=#c4ab39 gui=underline term=underline hi CocInfoHighlight guibg=#209020 hi CocHintHighlight guibg=#204090
+silent !cat ~/development/asciifun/thanks
